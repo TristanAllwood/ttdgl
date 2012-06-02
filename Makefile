@@ -1,6 +1,6 @@
 SRC=*.c
 CC=gcc
-CFLAGS=-Wall -Werror -pedantic-errors -std=c99
+CFLAGS=-Wall -Werror -pedantic-errors -std=c99 -g
 
 .SUFFIXES: .c .o .h
 
