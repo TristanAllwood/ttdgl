@@ -31,9 +31,13 @@ static void handle_sdl_resize(SDL_ResizeEvent * event, SDL_Surface ** screen) {
   (*screen) = screen_init_resize(event->w, event->h);
 }
 
+static const uint16_t MAX_EVENTS_BEFORE_RENDER = 1000;
+
 static void main_loop(SDL_Surface * screen) {
   while(true) {
     render();
+
+    uint16_t event_count = 0;
 
     SDL_Event event;
 
@@ -45,7 +49,7 @@ static void main_loop(SDL_Surface * screen) {
       switch (event.type) {
         case SDL_QUIT: 
           handle_sdl_quit();
-          exit(0);
+          break;
         case SDL_VIDEORESIZE:
           handle_sdl_resize(&event.resize, &screen);
           break;
@@ -54,7 +58,8 @@ static void main_loop(SDL_Surface * screen) {
           fprintf(stderr, "Unknown event: %x\n", event.type);
           break;
       }
-    } while (SDL_PollEvent(&event));
+    } while (++event_count < MAX_EVENTS_BEFORE_RENDER &&
+              SDL_PollEvent(&event));
   }
 }
 
