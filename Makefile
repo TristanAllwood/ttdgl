@@ -14,6 +14,7 @@ ttdgl: ttdgl.o util.o
 clean:
 	rm -rf ttdgl
 	rm -f *.o
+	rm -f tags
 
 tags: $(SRC)
 	ctags $^
