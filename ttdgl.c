@@ -1,22 +1,62 @@
 #define _XOPEN_SOURCE 600 
 #define _BSD_SOURCE
 
+#include <stdbool.h>
+#include <GL/gl.h>
+#include <GL/glu.h>
+#include <SDL.h>
+#include <SDL_thread.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <pwd.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <termios.h>
 #include <unistd.h>
 
-#include <SDL.h>
-#include <SDL_thread.h>
-#include <GL/gl.h>
-#include <GL/glu.h>
-
 #include "util.h"
+
+static SDL_Surface * screen_init_resize(int width, int height);
+
+void render(void) {
+}
+
+static void handle_sdl_quit(void) {
+  exit(0);
+}
+
+static void handle_sdl_resize(SDL_ResizeEvent * event, SDL_Surface ** screen) {
+  (*screen) = screen_init_resize(event->w, event->h);
+}
+
+static void main_loop(SDL_Surface * screen) {
+  while(true) {
+    render();
+
+    SDL_Event event;
+
+    if (SDL_WaitEvent(&event) == 0) {
+      die_with_error("SDL_WaitEvent");
+    }
+
+    do {
+      switch (event.type) {
+        case SDL_QUIT: 
+          handle_sdl_quit();
+          exit(0);
+        case SDL_VIDEORESIZE:
+          handle_sdl_resize(&event.resize, &screen);
+          break;
+
+        default:
+          fprintf(stderr, "Unknown event: %x\n", event.type);
+          break;
+      }
+    } while (SDL_PollEvent(&event));
+  }
+}
 
 static const char * get_shell() {
   char * shell = NULL;
@@ -81,34 +121,19 @@ static void parent(int pty_master_fd, int pty_child_fd) {
     die_with_error("SDL_GL_SetAttribute[DOUBLEBUFFER]");
   }
 
-  screen = SDL_SetVideoMode(640, 480, 0, SDL_HWSURFACE | SDL_OPENGL | SDL_RESIZABLE);
+  screen = screen_init_resize(640, 480);
+  main_loop(screen);
 
+}
+
+
+
+static SDL_Surface * screen_init_resize(int width, int height) {
+  SDL_Surface * screen = SDL_SetVideoMode(width, height, 0, SDL_HWSURFACE | SDL_OPENGL | SDL_RESIZABLE);
   if (screen == NULL) {
     die_with_error("SDL_SetVideoMode");
   }
-
-  SDL_Event event;
-
-  while (SDL_WaitEvent(&event)) {
-    
-    switch (event.type) {
-      case SDL_QUIT: 
-        exit(0);
-      case SDL_VIDEORESIZE:
-        fprintf(stderr, "Resizing\n");
-        screen = SDL_SetVideoMode(event.resize.w, event.resize.h, 0, SDL_HWSURFACE | SDL_OPENGL | SDL_RESIZABLE);
-        if (screen == NULL) {
-          die_with_error("SDL_SetVideoMode");
-        }
-        break;
-
-      default:
-        fprintf(stderr, "Unknown event: %x\n", event.type);
-        break;
-    }
-  }
-
-  die_with_error("SDL_WaitEvent");
+  return screen;
 }
 
 static void child(int pty_master_fd, int pty_child_fd) {
