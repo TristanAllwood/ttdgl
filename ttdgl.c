@@ -11,6 +11,10 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include <SDL.h>
+#include <GL/gl.h>
+#include <GL/glu.h>
+
 #include "util.h"
 
 static const char * get_shell() {
@@ -40,6 +44,42 @@ static void parent(int pty_master_fd, int pty_child_fd) {
   }
 
   // TODO start up sdl, gl and madness!
+
+  if (SDL_Init(SDL_INIT_VIDEO) == -1) {
+    die_with_error("SDL_Init");
+  }
+
+  if(atexit(SDL_Quit) != 0) {
+    die_with_error("atexit");
+  }
+
+  SDL_Surface * screen;
+  
+  if (SDL_GL_SetAttribute( SDL_GL_RED_SIZE, 8 ) == -1) {
+    die_with_error("SDL_GL_SetAttribute[RED]");
+  }
+
+  if (SDL_GL_SetAttribute( SDL_GL_GREEN_SIZE, 8 )) {
+    die_with_error("SDL_GL_SetAttribute[GREEN]");
+  }
+  if (SDL_GL_SetAttribute( SDL_GL_BLUE_SIZE, 8 )) {
+    die_with_error("SDL_GL_SetAttribute[BLUE]");
+  }
+  if (SDL_GL_SetAttribute( SDL_GL_DEPTH_SIZE, 16 )) {
+    die_with_error("SDL_GL_SetAttribute[DEPTH]");
+  }
+  if (SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 )) {
+    die_with_error("SDL_GL_SetAttribute[DOUBLEBUFFER]");
+  }
+
+  screen = SDL_SetVideoMode(640, 480, 0, SDL_HWSURFACE | SDL_OPENGL | SDL_RESIZABLE);
+
+  if (screen == NULL) {
+    die_with_error("SDL_SetVideoMode");
+  }
+
+
+
 }
 
 static void child(int pty_master_fd, int pty_child_fd) {
