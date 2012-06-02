@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 #include <SDL.h>
+#include <SDL_thread.h>
 #include <GL/gl.h>
 #include <GL/glu.h>
 
@@ -38,12 +39,18 @@ static const char * get_shell() {
   return "/bin/sh";
 }
 
+static int parent_pty_event_loop(void * data) {
+  int pty_master_fd = (int) data;
+
+  // TODO: epoll loop that pushes to the SDL event queue.
+  return pty_master_fd;
+  
+}
+
 static void parent(int pty_master_fd, int pty_child_fd) {
   if (close(pty_child_fd) == -1) {
     die_with_error("close [child]");
   }
-
-  // TODO start up sdl, gl and madness!
 
   if (SDL_Init(SDL_INIT_VIDEO) == -1) {
     die_with_error("SDL_Init");
@@ -52,6 +59,8 @@ static void parent(int pty_master_fd, int pty_child_fd) {
   if(atexit(SDL_Quit) != 0) {
     die_with_error("atexit");
   }
+
+  SDL_CreateThread(parent_pty_event_loop, (void *) pty_master_fd);
 
   SDL_Surface * screen;
   
@@ -78,8 +87,28 @@ static void parent(int pty_master_fd, int pty_child_fd) {
     die_with_error("SDL_SetVideoMode");
   }
 
+  SDL_Event event;
 
+  while (SDL_WaitEvent(&event)) {
+    
+    switch (event.type) {
+      case SDL_QUIT: 
+        exit(0);
+      case SDL_VIDEORESIZE:
+        fprintf(stderr, "Resizing\n");
+        screen = SDL_SetVideoMode(event.resize.w, event.resize.h, 0, SDL_HWSURFACE | SDL_OPENGL | SDL_RESIZABLE);
+        if (screen == NULL) {
+          die_with_error("SDL_SetVideoMode");
+        }
+        break;
 
+      default:
+        fprintf(stderr, "Unknown event: %x\n", event.type);
+        break;
+    }
+  }
+
+  die_with_error("SDL_WaitEvent");
 }
 
 static void child(int pty_master_fd, int pty_child_fd) {

@@ -1,7 +1,7 @@
 SRC=*.c
 CC=gcc
 CFLAGS=-Wall -Werror -pedantic-errors -std=c99 -g $(shell sdl-config --cflags)
-LDFLAGS=$(shell sdl-config --libs) -lgl
+LDFLAGS=$(shell sdl-config --libs) -lGL
 
 .SUFFIXES: .c .o .h
 
