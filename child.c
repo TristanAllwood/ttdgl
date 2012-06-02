@@ -29,6 +29,16 @@ void child(int pty_master_fd, int pty_child_fd) {
     die_with_error("tcsetattr");
   }
 
+  if (close(0) == -1) {
+    die_with_error("close[stdin]");
+  }
+  if (close(1) == -1) {
+    die_with_error("close[stdout]");
+  }
+  if (close(2) == -1) {
+    die_with_error("close[stderr] - ?");
+  }
+
   if (dup2(pty_child_fd, 0) == -1) {
     die_with_error("dup2 [stdin]");
   }
@@ -38,7 +48,7 @@ void child(int pty_master_fd, int pty_child_fd) {
   }
 
   if (dup2(pty_child_fd, 2) == -1) {
-    die_with_error("dup2 [stderr]");
+    die_with_error("dup2 [stderr] - ?");
   }
 
   if (close(pty_child_fd) == -1) {

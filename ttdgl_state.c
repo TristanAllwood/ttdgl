@@ -1,13 +1,14 @@
 #include "ttdgl_state.h"
 #include "util.h"
 
-const int DEFAULT_WIDTH = 640;
-const int DEFAULT_HEIGHT = 480;
+static const int DEFAULT_WIDTH = 640;
+static const int DEFAULT_HEIGHT = 480;
 
-ttdgl_state_t * init_ttdgl_state(void) { 
+ttdgl_state_t * init_ttdgl_state(int pty_master_fd) { 
   
   ttdgl_state_t * state = malloc(sizeof(ttdgl_state_t));
 
+  state->pty_master_fd = pty_master_fd;
   surface_resize(DEFAULT_WIDTH, DEFAULT_HEIGHT, state);
 
   return state;
