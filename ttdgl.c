@@ -1,19 +1,139 @@
 #define _XOPEN_SOURCE 600 
+#define _BSD_SOURCE
 
+#include <errno.h>
+#include <fcntl.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <fcntl.h>
-#include <errno.h>
 #include <string.h>
+#include <sys/ioctl.h>
+#include <sys/types.h>
+#include <termios.h>
+#include <unistd.h>
+
+static void die_with_error(char * method) {
+    int error = errno;
+    char * error_message = strerror(error);
+    fprintf(stderr, "error with %s: %s\n", method, error_message);
+    exit(error);
+}
+
+static const char * get_shell() {
+  char * shell = NULL;
+  shell = getenv("SHELL"); 
+
+  if (shell != NULL) {
+    return shell;
+  }
+
+  errno = 0;
+  struct passwd * pw_ent = getpwent();
+  if (pw_ent == NULL && errno != 0) {
+    die_with_error("getpwent");
+  }
+
+  if (pw_ent != NULL && pw_ent->pw_shell != NULL) {
+    return pw_ent->pw_shell;
+  }
+
+  return "/bin/sh";
+}
+
+static void parent(int pty_master_fd, int pty_child_fd) {
+  if (close(pty_child_fd) == -1) {
+    die_with_error("close [child]");
+  }
+
+  // TODO start up sdl, gl and madness!
+}
+
+static void child(int pty_master_fd, int pty_child_fd) {
+  
+  if (close(pty_master_fd) == -1) {
+    die_with_error("close[master]");
+  }
+
+  struct termios term_settings;
+
+  if (tcgetattr(pty_child_fd, &term_settings) == -1) {
+    die_with_error("tcgetattr");
+  }
+
+  cfmakeraw(&term_settings);
+
+  if(tcsetattr(pty_child_fd, TCSANOW, &term_settings) == -1) {
+    die_with_error("tcsetattr");
+  }
+
+  if (dup2(pty_child_fd, 0) == -1) {
+    die_with_error("dup2 [stdin]");
+  }
+
+  if (dup2(pty_child_fd, 1) == -1) {
+    die_with_error("dup2 [stdout]");
+  }
+
+  if (dup2(pty_child_fd, 2) == -1) {
+    die_with_error("dup2 [stderr]");
+  }
+
+  if (close(pty_child_fd) == -1) {
+    die_with_error("close[child]");
+  }
+
+  if (setsid() == -1) {
+    die_with_error("setsid");
+  }
+
+  if (ioctl(0, TIOCSCTTY, 1) == -1) {
+    die_with_error("ioctl");
+  }
+
+  const char * shell = get_shell();
+  char * const * args = calloc(0, sizeof(char *));
+  if (execv(shell, args) == -1) {
+    die_with_error("execv");
+  }
+  
+}
 
 int main(int argc, char ** argv) {
 
   int pty_master_fd = posix_openpt(O_RDWR);
-
   if (pty_master_fd == -1) {
-    int error = errno;
-    char * error_message = strerror(error);
-    fprintf(stderr, "Internal error: %s\n", error_message);
+    die_with_error("posix_openpt");
+  }
+
+  if (grantpt(pty_master_fd) == -1) {
+    die_with_error("grantpt");
+  }
+
+  if (unlockpt(pty_master_fd) == -1) {
+    die_with_error("unlockpt");
+  }
+
+  char * pty_child = ptsname(pty_master_fd);
+  if (pty_child == NULL) {
+    die_with_error("ptsname");
+  }
+
+  int pty_child_fd = open(pty_child, O_RDWR);
+  if (pty_child_fd == -1) {
+    die_with_error("open[pty_child]");
+  }
+
+  pid_t fork_result = fork();
+
+  switch (fork_result) {
+    case -1:
+      die_with_error("fork");
+    case 0:
+      child(pty_master_fd, pty_child_fd); 
+      break;
+    default:
+      parent(pty_master_fd, pty_child_fd);
+      break;
   }
 
   return 0;
