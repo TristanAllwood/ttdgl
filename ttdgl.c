@@ -4,20 +4,14 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <pwd.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <stdio.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <termios.h>
 #include <unistd.h>
 
-static void die_with_error(char * method) {
-    int error = errno;
-    char * error_message = strerror(error);
-    fprintf(stderr, "error with %s: %s\n", method, error_message);
-    exit(error);
-}
+#include "util.h"
 
 static const char * get_shell() {
   char * shell = NULL;
