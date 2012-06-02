@@ -1,4 +1,4 @@
-SRC=*.c
+SRC=*.c *.h
 CC=gcc
 CFLAGS=-Wall -Werror -pedantic-errors -std=c99 -g $(shell sdl-config --cflags)
 LDFLAGS=$(shell sdl-config --libs) -lGL
@@ -7,9 +7,15 @@ LDFLAGS=$(shell sdl-config --libs) -lGL
 
 all: tags ttdgl
 
-ttdgl.o: ttdgl.c util.h
+child.o: child.c child.h util.h
 
-ttdgl: ttdgl.o util.o
+render.o: render.c render.h ttdgl_state.h
+
+ttdgl_state.o: ttdgl_state.c ttdgl_state.h util.h
+
+ttdgl.o: ttdgl.c util.h ttdgl_state.h child.h render.h
+
+ttdgl: ttdgl.o util.o ttdgl_state.o child.o render.o
 
 clean:
 	rm -rf ttdgl

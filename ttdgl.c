@@ -6,36 +6,29 @@
 #include <GL/glu.h>
 #include <SDL.h>
 #include <SDL_thread.h>
-#include <errno.h>
 #include <fcntl.h>
-#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <termios.h>
 #include <unistd.h>
 
 #include "util.h"
-
-static SDL_Surface * screen_init_resize(int width, int height);
-
-void render(void) {
-}
+#include "ttdgl_state.h"
+#include "child.h"
+#include "render.h"
 
 static void handle_sdl_quit(void) {
   exit(0);
 }
 
-static void handle_sdl_resize(SDL_ResizeEvent * event, SDL_Surface ** screen) {
-  (*screen) = screen_init_resize(event->w, event->h);
+static void handle_sdl_resize(SDL_ResizeEvent * event, ttdgl_state_t * state) {
+  surface_resize(event->w, event->h, state);
 }
 
 static const uint16_t MAX_EVENTS_BEFORE_RENDER = 1000;
 
-static void main_loop(SDL_Surface * screen) {
+static void main_loop(ttdgl_state_t * state) {
   while(true) {
-    render();
+    render(state);
 
     uint16_t event_count = 0;
 
@@ -51,7 +44,7 @@ static void main_loop(SDL_Surface * screen) {
           handle_sdl_quit();
           break;
         case SDL_VIDEORESIZE:
-          handle_sdl_resize(&event.resize, &screen);
+          handle_sdl_resize(&event.resize, state);
           break;
 
         default:
@@ -63,26 +56,6 @@ static void main_loop(SDL_Surface * screen) {
   }
 }
 
-static const char * get_shell() {
-  char * shell = NULL;
-  shell = getenv("SHELL"); 
-
-  if (shell != NULL) {
-    return shell;
-  }
-
-  errno = 0;
-  struct passwd * pw_ent = getpwent();
-  if (pw_ent == NULL && errno != 0) {
-    die_with_error("getpwent");
-  }
-
-  if (pw_ent != NULL && pw_ent->pw_shell != NULL) {
-    return pw_ent->pw_shell;
-  }
-
-  return "/bin/sh";
-}
 
 static int parent_pty_event_loop(void * data) {
   int pty_master_fd = (int) data;
@@ -107,8 +80,6 @@ static void parent(int pty_master_fd, int pty_child_fd) {
 
   SDL_CreateThread(parent_pty_event_loop, (void *) pty_master_fd);
 
-  SDL_Surface * screen;
-  
   if (SDL_GL_SetAttribute( SDL_GL_RED_SIZE, 8 ) == -1) {
     die_with_error("SDL_GL_SetAttribute[RED]");
   }
@@ -126,70 +97,12 @@ static void parent(int pty_master_fd, int pty_child_fd) {
     die_with_error("SDL_GL_SetAttribute[DOUBLEBUFFER]");
   }
 
-  screen = screen_init_resize(640, 480);
-  main_loop(screen);
+  ttdgl_state_t * state = init_ttdgl_state();
+
+  main_loop(state);
 
 }
 
-
-
-static SDL_Surface * screen_init_resize(int width, int height) {
-  SDL_Surface * screen = SDL_SetVideoMode(width, height, 0, SDL_HWSURFACE | SDL_OPENGL | SDL_RESIZABLE);
-  if (screen == NULL) {
-    die_with_error("SDL_SetVideoMode");
-  }
-  return screen;
-}
-
-static void child(int pty_master_fd, int pty_child_fd) {
-  
-  if (close(pty_master_fd) == -1) {
-    die_with_error("close[master]");
-  }
-
-  struct termios term_settings;
-
-  if (tcgetattr(pty_child_fd, &term_settings) == -1) {
-    die_with_error("tcgetattr");
-  }
-
-  cfmakeraw(&term_settings);
-
-  if(tcsetattr(pty_child_fd, TCSANOW, &term_settings) == -1) {
-    die_with_error("tcsetattr");
-  }
-
-  if (dup2(pty_child_fd, 0) == -1) {
-    die_with_error("dup2 [stdin]");
-  }
-
-  if (dup2(pty_child_fd, 1) == -1) {
-    die_with_error("dup2 [stdout]");
-  }
-
-  if (dup2(pty_child_fd, 2) == -1) {
-    die_with_error("dup2 [stderr]");
-  }
-
-  if (close(pty_child_fd) == -1) {
-    die_with_error("close[child]");
-  }
-
-  if (setsid() == -1) {
-    die_with_error("setsid");
-  }
-
-  if (ioctl(0, TIOCSCTTY, 1) == -1) {
-    die_with_error("ioctl");
-  }
-
-  const char * shell = get_shell();
-  char * const * args = calloc(0, sizeof(char *));
-  if (execv(shell, args) == -1) {
-    die_with_error("execv");
-  }
-  
-}
 
 int main(int argc, char ** argv) {
 
