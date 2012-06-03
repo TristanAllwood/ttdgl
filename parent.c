@@ -27,7 +27,7 @@ static void handle_sdl_pty_data(pty_data_t * data, ttdgl_state_t * state);
 
 
 
-void parent(int pty_master_fd, int pty_child_fd) {
+void parent(pid_t child_pid, int pty_master_fd, int pty_child_fd) {
   if (close(pty_child_fd) == -1) {
     die_with_error("close [child]");
   }
@@ -59,7 +59,7 @@ void parent(int pty_master_fd, int pty_child_fd) {
     die_with_error("SDL_GL_SetAttribute[DOUBLEBUFFER]");
   }
 
-  ttdgl_state_t * state = init_ttdgl_state(pty_master_fd);
+  ttdgl_state_t * state = init_ttdgl_state(child_pid, pty_master_fd);
 
   main_loop(state);
 
@@ -198,6 +198,7 @@ static void handle_sdl_pty_closed(void) {
 
 static void handle_sdl_pty_data(pty_data_t * data, ttdgl_state_t * state) {
   // TODO: must free or pass along buffer and data pointers.
+
 }
 
 
@@ -224,4 +225,28 @@ static void handle_pty_data(char * buffer, size_t buffer_count) {
   user_event.user.data2 = NULL;
 
   SDL_PushEvent(&user_event);
+
+  /*
+  int position = 0;
+
+  while(position < data->buffer_count) {
+    char byte = data->buffer[++position];
+
+    if (byte == 0x1B) {
+      // escape
+    } else if (byte & 0x80 == 0x00) {
+      // normal char 
+    } else if (byte & 0xE0 == 0x60) {
+      // 2-byte utf-8 
+    } else if (byte & 0xF0 == 0xE0) {
+      // 3-byte utf-8 
+    } else if (byte & 0xF8 == 0xC0) {
+      // 4-byte utf-8 
+    } else {
+      fprint(stderr, "Unknown byte: %x\n", byte);
+    }
+  }
+  data->
+  */
+
 }

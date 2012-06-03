@@ -44,7 +44,7 @@ int main(int argc, char ** argv) {
       child(pty_master_fd, pty_child_fd); 
       break;
     default:
-      parent(pty_master_fd, pty_child_fd);
+      parent(fork_result, pty_master_fd, pty_child_fd);
       break;
   }
 
