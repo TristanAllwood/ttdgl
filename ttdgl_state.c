@@ -69,3 +69,40 @@ void surface_resize(int width, int height, ttdgl_state_t * state) {
   state->surface_height = height;
   state->surface = surface;
 }
+
+
+void put_char(char nt_unicode_char[5], ttdgl_state_t * state) {
+
+  frame_t * frame = state->current_frame;
+  cursor_t cursor = state->current_cursor; 
+
+  int nRows = frame->rows;
+  int nCols = frame->cols;
+
+  cell_t * cells = frame->cells;
+  cell_t * cell = cells + (nCols * cursor.y) + cursor.x;
+
+  switch (nt_unicode_char[0]) {
+    case '\n':
+    case '\r':
+      cursor.y++;
+      cursor.x = 0;
+      break;
+    default:
+      memcpy(cell->nt_unicode_char, nt_unicode_char, 5);
+      cursor.x++;
+
+      if (cursor.x >= nCols) {
+        cursor.x = 0;
+        cursor.y++;
+      } 
+
+  }
+
+  if (cursor.y >= nRows) {
+    // TODO: horrible hack if we fall off the bottom.
+    cursor.x = 0;
+    cursor.y = 0;
+  }
+  state->current_cursor = cursor;
+}

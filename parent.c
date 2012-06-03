@@ -1,6 +1,8 @@
-#include <unistd.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <sys/epoll.h>
+#include <unistd.h>
+#include <X11/Xlib.h>
 
 #include "parent.h"
 #include "pty_event.h"
@@ -23,7 +25,7 @@ static void handle_sdl_keydown(SDL_KeyboardEvent * key, ttdgl_state_t * state);
 static void handle_sdl_keyup(SDL_KeyboardEvent * key, ttdgl_state_t * state);
 
 static void handle_sdl_pty_closed(void);
-static void handle_sdl_pty_data(pty_data_t * data, ttdgl_state_t * state);
+static void handle_sdl_pty_write(pty_write_t * data, ttdgl_state_t * state);
 
 
 
@@ -31,6 +33,8 @@ void parent(pid_t child_pid, int pty_master_fd, int pty_child_fd) {
   if (close(pty_child_fd) == -1) {
     die_with_error("close [child]");
   }
+
+  XInitThreads();
 
   if (SDL_Init(SDL_INIT_VIDEO) == -1) {
     die_with_error("SDL_Init");
@@ -62,10 +66,9 @@ void parent(pid_t child_pid, int pty_master_fd, int pty_child_fd) {
   ttdgl_state_t * state = init_ttdgl_state(child_pid, pty_master_fd);
 
   main_loop(state);
-
 }
 
-static const uint16_t MAX_EVENTS_BEFORE_RENDER = 1000;
+static const uint16_t MAX_EVENTS_BEFORE_RENDER = 2048;
 
 static void main_loop(ttdgl_state_t * state) {
   while(true) {
@@ -133,19 +136,19 @@ static int epoll_event_loop(void * data) {
       if (events[i].data.fd == pty_master_fd) {
         char * buffer = calloc(BUFFER_SIZE, sizeof(char));
           // free: either here, or in the main event loop
-
         size_t count;
 
         count = read(pty_master_fd, buffer, BUFFER_SIZE);
 
         switch (count) {
           case -1:
-            die_with_error("read");
-            break;
+            handle_pty_closed();
+            free(buffer);
+            return 0;
           case 0:
             handle_pty_closed();
             free(buffer);
-            break;
+            return 0;
           default:
             handle_pty_data(buffer, count);
             break;
@@ -175,8 +178,8 @@ static void handle_sdl_user(SDL_UserEvent * user, ttdgl_state_t * state) {
     case PTY_CLOSED:
       handle_sdl_pty_closed();
       break;
-    case PTY_DATA:
-      handle_sdl_pty_data((pty_data_t *) user->data1, state);
+    case PTY_WRITE:
+      handle_sdl_pty_write((pty_write_t *) user->data1, state);
       break;
     default:
       fprintf(stderr, "Unknown user code: %x\n", user->code);
@@ -184,8 +187,24 @@ static void handle_sdl_user(SDL_UserEvent * user, ttdgl_state_t * state) {
   }
 }
 
-static void handle_sdl_keydown(SDL_KeyboardEvent * key, ttdgl_state_t * state) {
-  // TODO
+static void handle_sdl_keydown(SDL_KeyboardEvent * key_ev, ttdgl_state_t * state) {
+
+  char out[5];
+  out[1] = '\0';
+  SDLKey key = key_ev->keysym.sym;
+
+  if (key == SDLK_RETURN) {
+      out[0] = '\r';
+  } else if (key >= SDLK_a && key <= SDLK_z) {
+      out[0] = 'a' + key - SDLK_a;
+  } else {
+    fprintf(stderr, "TODO: handle keydown: %x\n", key);
+    return;
+  }
+
+  put_char(out, state);
+  write(state->pty_master_fd, out, 2);
+  // TODO error check the write call.
 }
 
 static void handle_sdl_keyup(SDL_KeyboardEvent * key, ttdgl_state_t * state) {
@@ -196,9 +215,9 @@ static void handle_sdl_pty_closed(void) {
   handle_sdl_quit();
 }
 
-static void handle_sdl_pty_data(pty_data_t * data, ttdgl_state_t * state) {
-  // TODO: must free or pass along buffer and data pointers.
-
+static void handle_sdl_pty_write(pty_write_t * data, ttdgl_state_t * state) {
+  put_char(data->nt_unicode_char, state);
+  free(data);
 }
 
 
@@ -212,41 +231,77 @@ static void handle_pty_closed(void) {
   SDL_PushEvent(&user_event);
 }
 
-static void handle_pty_data(char * buffer, size_t buffer_count) {
-  pty_data_t * pty_data = malloc(sizeof(pty_data));
-
-  pty_data->buffer = buffer;
-  pty_data->buffer_count = buffer_count;
+static void push_pty_write(char nt_unicode_char[5]) {
+  pty_write_t * packet = malloc(sizeof(pty_write_t));
+  memcpy(packet->nt_unicode_char, nt_unicode_char, 5);
 
   SDL_Event user_event;
   user_event.type = SDL_USEREVENT;
-  user_event.user.code = PTY_DATA;
-  user_event.user.data1 = (void *) pty_data;
+  user_event.user.code = PTY_WRITE;
+  user_event.user.data1 = (void *) packet;
   user_event.user.data2 = NULL;
 
   SDL_PushEvent(&user_event);
+}
 
-  /*
+static void handle_pty_data(char * buffer, size_t buffer_count) {
+
   int position = 0;
 
-  while(position < data->buffer_count) {
-    char byte = data->buffer[++position];
+  while(position < buffer_count) {
+    char byte = buffer[position++];
 
     if (byte == 0x1B) {
-      // escape
-    } else if (byte & 0x80 == 0x00) {
+      fprintf(stderr, "TODO: handle escape code\n");
+
+    } else if ((byte & 0x80) == 0x00) {
       // normal char 
-    } else if (byte & 0xE0 == 0x60) {
+      char out[5];
+      out[0] = byte;
+      out[1] = '\0';
+      push_pty_write(out);
+
+    } else if ((byte & 0xE0) == 0x60) {
       // 2-byte utf-8 
-    } else if (byte & 0xF0 == 0xE0) {
-      // 3-byte utf-8 
-    } else if (byte & 0xF8 == 0xC0) {
-      // 4-byte utf-8 
+      if(position >= buffer_count-2) {
+        fprintf(stderr, "TODO: handle 2-byte utf8 excess runs\n");
+        continue;
+      }
+
+      char out[5];
+      out[0] = byte;
+      out[1] = buffer[position++];
+      out[2] = '\0';
+      push_pty_write(out);
+
+    } else if ((byte & 0xF0) == 0xE0) {
+      if(position >= buffer_count-3) {
+        fprintf(stderr, "TODO: handle 3-byte utf8 excess runs\n");
+        continue;
+      }
+
+      char out[5];
+      out[0] = byte;
+      out[1] = buffer[position++];
+      out[2] = buffer[position++];
+      out[3] = '\0';
+      push_pty_write(out);
+
+    } else if ((byte & 0xF8) == 0xC0) {
+      if(position >= buffer_count-4) {
+        fprintf(stderr, "TODO: handle 4-byte utf8 excess runs\n");
+        continue;
+      }
+
+      char out[5];
+      out[0] = byte;
+      out[1] = buffer[position++];
+      out[2] = buffer[position++];
+      out[3] = buffer[position++];
+      out[4] = '\0';
+      push_pty_write(out);
     } else {
-      fprint(stderr, "Unknown byte: %x\n", byte);
+      fprintf(stderr, "Unknown byte: %x\n", byte);
     }
   }
-  data->
-  */
-
 }

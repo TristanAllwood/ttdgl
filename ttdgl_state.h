@@ -70,5 +70,6 @@ typedef struct ttdgl_state {
 ttdgl_state_t * init_ttdgl_state(pid_t child_pid, int pty_master_fd);
 
 void surface_resize(int width, int height, ttdgl_state_t * state);
+void put_char(char nt_unicode_char[5], ttdgl_state_t * state);
 
 #endif
