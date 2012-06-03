@@ -9,7 +9,7 @@
 #include "util.h"
 #include "child.h"
 
-static const char * get_shell();
+static char * get_shell();
 
 void child(int pty_master_fd, int pty_child_fd) {
   
@@ -63,15 +63,18 @@ void child(int pty_master_fd, int pty_child_fd) {
     die_with_error("ioctl");
   }
 
-  const char * shell = get_shell();
-  char * const * args = calloc(0, sizeof(char *));
-  if (execv(shell, args) == -1) {
+  char * shell = get_shell();
+  char * argv[2];
+  argv[0] = shell;
+  argv[1] = NULL;
+
+  if (execv("/usr/bin/luit", argv) == -1) {
     die_with_error("execv");
   }
   
 }
 
-static const char * get_shell() {
+static char * get_shell() {
   char * shell = NULL;
   shell = getenv("SHELL"); 
 
