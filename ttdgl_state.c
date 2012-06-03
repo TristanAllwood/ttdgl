@@ -26,23 +26,34 @@ ttdgl_state_t * init_ttdgl_state(pid_t child_pid, int pty_master_fd) {
   state->current_attrs = attrs;
   state->saved_attrs = attrs;
 
+  state->font = ftglCreateTextureFont("/usr/share/fonts/truetype/freefont/FreeMono.ttf");
+  if (state->font == NULL) {
+    die_with_error("ftglCreateTextureFont");
+  }
+
+  state->alt_font = ftglCreateTextureFont("/usr/share/fonts/truetype/ttf-dejavu/DejaVuSansMono.ttf");
+  if (state->alt_font == NULL) {
+    die_with_error("ftglCreateTextureFont[alt]");
+  }
+
   frame_t * initial_frame = malloc(sizeof(frame_t));
   initial_frame->rows = 24;
   initial_frame->cols = 80;
 
-  cell_t ** cells = calloc(initial_frame->rows, sizeof(cell_t *));
-  for(int i = 0 ; i < initial_frame->rows ; i++) {
-    cells[i] = calloc(initial_frame->cols, sizeof(cell_t));
+  cell_t * cells = calloc(initial_frame->rows * initial_frame->cols, sizeof(cell_t));
 
-    for(int j = 0 ; j < initial_frame->cols; j++) {
-      cells[i][j].nt_unicode_char[0] = '~';
-      cells[i][j].alt_font = false;
-      cells[i][j].foreground_colour=0xFFFFFF00;
-      cells[i][j].background_colour=0x00000000;
-    }
+  for (cell_t * cell = cells ; 
+      cell < cells + (initial_frame->rows * initial_frame->cols) ; 
+      ++cell) {
+    cell->nt_unicode_char[0] = '~';
+    cell->nt_unicode_char[1] = '\0';
+    cell->alt_font = false;
+    cell->foreground_colour=0xFFFFFF00;
+    cell->background_colour=0x00000000;
   }
+  initial_frame->cells = cells;
 
-  state->current_frame=initial_frame;
+  state->current_frame = initial_frame;
 
 
   return state;

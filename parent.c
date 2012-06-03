@@ -8,7 +8,7 @@
 #include "ttdgl_state.h"
 #include "util.h"
 
-static int parent_pty_event_loop(void * data);
+static int epoll_event_loop(void * data);
 
 static void handle_pty_closed(void);
 static void handle_pty_data(char buffer[BUFFER_SIZE], size_t buffer_count);
@@ -40,7 +40,7 @@ void parent(pid_t child_pid, int pty_master_fd, int pty_child_fd) {
     die_with_error("atexit");
   }
 
-  SDL_CreateThread(parent_pty_event_loop, (void *) pty_master_fd);
+  SDL_CreateThread(epoll_event_loop, (void *) pty_master_fd);
 
   if (SDL_GL_SetAttribute( SDL_GL_RED_SIZE, 8 ) == -1) {
     die_with_error("SDL_GL_SetAttribute[RED]");
@@ -106,7 +106,7 @@ static void main_loop(ttdgl_state_t * state) {
 }
 
 
-static int parent_pty_event_loop(void * data) {
+static int epoll_event_loop(void * data) {
   int pty_master_fd = (int) data;
 
   int epoll_fd = epoll_create(1);

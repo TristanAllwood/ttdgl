@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <SDL.h>
 #include <stdlib.h>
+#include <FTGL/ftgl.h>
 
 enum attr_flag {
   ATTR_BRIGHT     = 1 << 0,
@@ -28,7 +29,7 @@ typedef struct frame {
   uint rows;
   uint cols;
 
-  cell_t ** cells;
+  cell_t * cells;
 
   struct frame * previous_frame;
 } frame_t;
@@ -59,7 +60,11 @@ typedef struct ttdgl_state {
   attrs_t current_attrs;
   attrs_t saved_attrs;
 
+  FTGLfont * font;
+  FTGLfont * alt_font;
+
   frame_t * current_frame;
+  
 } ttdgl_state_t;
 
 ttdgl_state_t * init_ttdgl_state(pid_t child_pid, int pty_master_fd);

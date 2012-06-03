@@ -1,7 +1,8 @@
 SRC=*.c *.h
 CC=gcc
-CFLAGS=-Wall -Werror -pedantic-errors -std=c99 -g $(shell sdl-config --cflags)
-LDFLAGS=$(shell sdl-config --libs) -lGL
+FREETYPE_INCLUDE="/usr/include/freetype2/"
+CFLAGS=-Wall -Werror -pedantic-errors -std=c99 -g $(shell sdl-config --cflags) -I$(FREETYPE_INCLUDE)
+LDFLAGS=$(shell sdl-config --libs) -lGL -lftgl
 
 .SUFFIXES: .c .o .h
 
