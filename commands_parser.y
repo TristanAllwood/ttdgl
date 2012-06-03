@@ -23,6 +23,7 @@ toplevel: command                     { printf("size: %i\n", total_command_lengt
 command	: ']' NUMBER ';'              { printf("set title\n");      /* case on number, if 0 -> read bytes up to bell and set title. (whatever that means) */ }
 	| '[' attr_list 'm'           { printf("set attr list\n");  /* done via the recursive case */ }
         | '[' NUMBER ';' NUMBER 'H'   { printf("goto position\n");  /* go to absolute position */ }
+        | '[' '?' NUMBER 'h'          { printf("various commands\n"); }
         ;
 
 attr_list: 
@@ -48,6 +49,11 @@ int parse_command(char * buffer, size_t buffer_size) {
     fprintf(stderr, "TODO: handle escape code run %i\n", ret);
     return 0;
   }
+
+  char * tmp = calloc(total_command_length + 1, sizeof(char));
+  strncpy(tmp, buffer, total_command_length);
+  printf("Parsed command: %s\n", tmp);
+  free(tmp);
 
   return total_command_length;
 }

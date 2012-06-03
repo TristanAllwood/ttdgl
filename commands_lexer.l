@@ -11,9 +11,8 @@ int total_command_length;
 
 %%
 "]"             { total_command_length += yyleng ; return ']'; }
-";"             { total_command_length += yyleng ; return ';'; }
 "["             { total_command_length += yyleng ; return '['; }
-[a-zA-Z]        { total_command_length += yyleng ; return yytext[0]; }
+[;?a-zA-Z]      { total_command_length += yyleng ; return yytext[0]; }
 
 [0-9]+          { total_command_length += yyleng ; return NUMBER; }
 

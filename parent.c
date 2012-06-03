@@ -79,8 +79,10 @@ static void sdl_render_loop(ttdgl_state_t * state) {
 
     SDL_Event event;
 
-    if (SDL_WaitEvent(&event) == 0) {
-      die_with_error("SDL_WaitEvent");
+    while (SDL_WaitEvent(&event) == 0) {
+      // TODO yukk!
+      fprintf(stderr, "TODO: SDL_WaitEvent failed\n");
+      sched_yield();
     }
 
     do {
@@ -256,7 +258,7 @@ static void handle_pty_data(char * buffer, size_t buffer_count) {
     char byte = buffer[position++];
 
     if (byte == 0x1B) {
-      position += parse_command(&buffer[position], buffer_count - position);
+      position += parse_command(&buffer[position], buffer_count - position - 1);
 
     } else if ((byte & 0x80) == 0x00) {
       // normal char 
