@@ -1,8 +1,9 @@
+#include <X11/Xlib.h>
+#include <sched.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <sys/epoll.h>
 #include <unistd.h>
-#include <X11/Xlib.h>
 
 #include "parent.h"
 #include "pty_event.h"
@@ -16,7 +17,7 @@ static void handle_pty_closed(void);
 static void handle_pty_data(char buffer[BUFFER_SIZE], size_t buffer_count);
 
 
-static void main_loop(ttdgl_state_t * state);
+static void sdl_render_loop(ttdgl_state_t * state);
 
 static void handle_sdl_quit(void);
 static void handle_sdl_resize(SDL_ResizeEvent * event, ttdgl_state_t * state);
@@ -49,7 +50,6 @@ void parent(pid_t child_pid, int pty_master_fd, int pty_child_fd) {
   if (SDL_GL_SetAttribute( SDL_GL_RED_SIZE, 8 ) == -1) {
     die_with_error("SDL_GL_SetAttribute[RED]");
   }
-
   if (SDL_GL_SetAttribute( SDL_GL_GREEN_SIZE, 8 )) {
     die_with_error("SDL_GL_SetAttribute[GREEN]");
   }
@@ -65,12 +65,12 @@ void parent(pid_t child_pid, int pty_master_fd, int pty_child_fd) {
 
   ttdgl_state_t * state = init_ttdgl_state(child_pid, pty_master_fd);
 
-  main_loop(state);
+  sdl_render_loop(state);
 }
 
-static const uint16_t MAX_EVENTS_BEFORE_RENDER = 2048;
+static const uint16_t MAX_EVENTS_BEFORE_RENDER = 8192;
 
-static void main_loop(ttdgl_state_t * state) {
+static void sdl_render_loop(ttdgl_state_t * state) {
   while(true) {
     render(state);
 
@@ -135,22 +135,19 @@ static int epoll_event_loop(void * data) {
 
       if (events[i].data.fd == pty_master_fd) {
         char * buffer = calloc(BUFFER_SIZE, sizeof(char));
-          // free: either here, or in the main event loop
         size_t count;
 
         count = read(pty_master_fd, buffer, BUFFER_SIZE);
 
         switch (count) {
           case -1:
-            handle_pty_closed();
-            free(buffer);
-            return 0;
           case 0:
             handle_pty_closed();
             free(buffer);
             return 0;
           default:
             handle_pty_data(buffer, count);
+            free(buffer);
             break;
         }
       } else {
@@ -228,7 +225,10 @@ static void handle_pty_closed(void) {
   user_event.user.data1 = NULL;
   user_event.user.data2 = NULL;
 
-  SDL_PushEvent(&user_event);
+  while (SDL_PushEvent(&user_event) == -1) {
+    // TODO yuk!
+    sched_yield();
+  }
 }
 
 static void push_pty_write(char nt_unicode_char[5]) {
@@ -241,7 +241,10 @@ static void push_pty_write(char nt_unicode_char[5]) {
   user_event.user.data1 = (void *) packet;
   user_event.user.data2 = NULL;
 
-  SDL_PushEvent(&user_event);
+  while (SDL_PushEvent(&user_event) == -1) {
+    // TODO yuk!
+    sched_yield();
+  }
 }
 
 static void handle_pty_data(char * buffer, size_t buffer_count) {
@@ -252,6 +255,7 @@ static void handle_pty_data(char * buffer, size_t buffer_count) {
     char byte = buffer[position++];
 
     if (byte == 0x1B) {
+
       fprintf(stderr, "TODO: handle escape code\n");
 
     } else if ((byte & 0x80) == 0x00) {
