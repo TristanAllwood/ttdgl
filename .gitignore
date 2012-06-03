@@ -4,3 +4,6 @@ tags
 *.o
 *.vim
 *.swp
+commands_lexer.c
+commands_parser.c
+commands_parser.h

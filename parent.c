@@ -28,6 +28,9 @@ static void handle_sdl_keyup(SDL_KeyboardEvent * key, ttdgl_state_t * state);
 static void handle_sdl_pty_closed(void);
 static void handle_sdl_pty_write(pty_write_t * data, ttdgl_state_t * state);
 
+extern void * yy_scan_bytes(const char * bytes, int len);
+extern int yyparse(void);
+extern void yy_delete_buffer(void * data);
 
 
 void parent(pid_t child_pid, int pty_master_fd, int pty_child_fd) {
@@ -256,7 +259,15 @@ static void handle_pty_data(char * buffer, size_t buffer_count) {
 
     if (byte == 0x1B) {
 
-      fprintf(stderr, "TODO: handle escape code\n");
+      void * hdl = yy_scan_bytes(&buffer[position], buffer_count - position - 2);
+      int ret = yyparse();
+        
+      /* if (position >= buffer_count) { */
+      fprintf(stderr, "TODO: handle escape code run %i\n", ret);
+      /* continue;
+      }
+      */
+      yy_delete_buffer(hdl);
 
     } else if ((byte & 0x80) == 0x00) {
       // normal char 
@@ -267,7 +278,7 @@ static void handle_pty_data(char * buffer, size_t buffer_count) {
 
     } else if ((byte & 0xE0) == 0x60) {
       // 2-byte utf-8 
-      if(position >= buffer_count-2) {
+      if (position >= buffer_count-2) {
         fprintf(stderr, "TODO: handle 2-byte utf8 excess runs\n");
         continue;
       }
@@ -279,7 +290,7 @@ static void handle_pty_data(char * buffer, size_t buffer_count) {
       push_pty_write(out);
 
     } else if ((byte & 0xF0) == 0xE0) {
-      if(position >= buffer_count-3) {
+      if (position >= buffer_count-3) {
         fprintf(stderr, "TODO: handle 3-byte utf8 excess runs\n");
         continue;
       }
@@ -292,7 +303,7 @@ static void handle_pty_data(char * buffer, size_t buffer_count) {
       push_pty_write(out);
 
     } else if ((byte & 0xF8) == 0xC0) {
-      if(position >= buffer_count-4) {
+      if (position >= buffer_count-4) {
         fprintf(stderr, "TODO: handle 4-byte utf8 excess runs\n");
         continue;
       }
