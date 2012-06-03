@@ -28,10 +28,8 @@ static void handle_sdl_keyup(SDL_KeyboardEvent * key, ttdgl_state_t * state);
 static void handle_sdl_pty_closed(void);
 static void handle_sdl_pty_write(pty_write_t * data, ttdgl_state_t * state);
 
-extern void * yy_scan_bytes(const char * bytes, int len);
-extern int yyparse(void);
-extern void yy_delete_buffer(void * data);
 
+extern int parse_command(char * buffer, size_t buffer_size);
 
 void parent(pid_t child_pid, int pty_master_fd, int pty_child_fd) {
   if (close(pty_child_fd) == -1) {
@@ -258,16 +256,7 @@ static void handle_pty_data(char * buffer, size_t buffer_count) {
     char byte = buffer[position++];
 
     if (byte == 0x1B) {
-
-      void * hdl = yy_scan_bytes(&buffer[position], buffer_count - position - 2);
-      int ret = yyparse();
-        
-      /* if (position >= buffer_count) { */
-      fprintf(stderr, "TODO: handle escape code run %i\n", ret);
-      /* continue;
-      }
-      */
-      yy_delete_buffer(hdl);
+      position += parse_command(&buffer[position], buffer_count - position);
 
     } else if ((byte & 0x80) == 0x00) {
       // normal char 

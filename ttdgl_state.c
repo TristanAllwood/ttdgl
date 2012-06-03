@@ -89,20 +89,21 @@ void put_char(char nt_unicode_char[5], ttdgl_state_t * state) {
       cursor.x = 0;
       break;
     default:
-      memcpy(cell->nt_unicode_char, nt_unicode_char, 5);
-      cursor.x++;
-
       if (cursor.x >= nCols) {
         cursor.x = 0;
         cursor.y++;
       } 
 
+      if (cursor.y >= nRows) {
+        // TODO: horrible hack if we fall off the bottom.
+        cursor.x = 0;
+        cursor.y = 0;
+      }
+      memcpy(cell->nt_unicode_char, nt_unicode_char, 5);
+      cursor.x++;
+
+
   }
 
-  if (cursor.y >= nRows) {
-    // TODO: horrible hack if we fall off the bottom.
-    cursor.x = 0;
-    cursor.y = 0;
-  }
   state->current_cursor = cursor;
 }
