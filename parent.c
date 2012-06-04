@@ -14,6 +14,7 @@
 
 static int epoll_event_loop(void * data);
 
+static void send_sdl_userevent(int code, void * packet);
 static void handle_pty_closed(void);
 static void handle_pty_data(char buffer[BUFFER_SIZE], size_t buffer_count);
 
@@ -28,6 +29,7 @@ static void handle_sdl_keyup(SDL_KeyboardEvent * key, ttdgl_state_t * state);
 
 static void handle_sdl_pty_closed(void);
 static void handle_sdl_pty_write(pty_write_t * data, ttdgl_state_t * state);
+static void handle_sdl_pty_set_attribute(pty_set_attributes_t * data, ttdgl_state_t * state);
 
 void parent(pid_t child_pid, int pty_master_fd, int pty_child_fd) {
   if (close(pty_child_fd) == -1) {
@@ -133,9 +135,7 @@ static int epoll_event_loop(void * data) {
   while (true) {
     int event_count;
     do {
-      printf("start epoll wait\n");
       event_count = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
-      printf("stop epoll wait\n");
     } while (event_count == -1 && errno == EINTR);
 
     if (event_count == -1) {
@@ -153,8 +153,8 @@ static int epoll_event_loop(void * data) {
         switch (count) {
           case -1:
           case 0:
-            handle_pty_closed();
             free(buffer);
+            handle_pty_closed();
             return 0;
           default:
             handle_pty_data(buffer, count);
@@ -186,6 +186,9 @@ static void handle_sdl_user(SDL_UserEvent * user, ttdgl_state_t * state) {
       break;
     case PTY_WRITE:
       handle_sdl_pty_write((pty_write_t *) user->data1, state);
+      break;
+    case PTY_SET_ATTRIBUTE:
+      handle_sdl_pty_set_attribute((pty_set_attributes_t *) user->data1, state);
       break;
     default:
       fprintf(stderr, "Unknown user code: %x\n", user->code);
@@ -226,28 +229,58 @@ static void handle_sdl_pty_write(pty_write_t * data, ttdgl_state_t * state) {
   free(data);
 }
 
+static void handle_sdl_pty_set_attribute(pty_set_attributes_t * data, ttdgl_state_t * state) {
+  /* check for xterm 256 colours */
+
+  for (int i = 0 ; i < data->arg_count ; i++) {
+    switch (data->attr_codes[i]) {
+      case 0:
+        state->current_attrs.attr_flags = 0;
+        state->current_attrs.foreground_colour = 0x000000;
+        break;
+      case 1:
+        state->current_attrs.attr_flags |= ATTR_BOLD;
+        break;
+      case 5:
+        state->current_attrs.attr_flags |= ATTR_BLINK;
+        break;
+      case 33:
+        state->current_attrs.foreground_colour = 0xff0000;
+        break;
+      case 36:
+        state->current_attrs.foreground_colour = 0x00ffff;
+        break;
+      case 38:
+        state->current_attrs.attr_flags |= ATTR_UNDERSCORE;
+        break;
+      case 94:
+        state->current_attrs.foreground_colour = 0x00ff00;
+        break;
+      default:
+        fprintf(stderr, "TODO: unknown attr code: %ld\n", data->attr_codes[i]);
+        break;
+    }
+  }
+
+  free(data);
+}
+
 
 static void handle_pty_closed(void) {
-  SDL_Event user_event;
-  user_event.type = SDL_USEREVENT;
-  user_event.user.code = PTY_CLOSED;
-  user_event.user.data1 = NULL;
-  user_event.user.data2 = NULL;
-
-  while (SDL_PushEvent(&user_event) == -1) {
-    // TODO yuk!
-    sched_yield();
-  }
+  send_sdl_userevent(PTY_CLOSED, NULL);
 }
 
 static void push_pty_write(char nt_unicode_char[5]) {
   pty_write_t * packet = malloc(sizeof(pty_write_t));
   memcpy(packet->nt_unicode_char, nt_unicode_char, 5);
+  send_sdl_userevent(PTY_WRITE, packet);
+}
 
+static void send_sdl_userevent(int code, void * packet) {
   SDL_Event user_event;
   user_event.type = SDL_USEREVENT;
-  user_event.user.code = PTY_WRITE;
-  user_event.user.data1 = (void *) packet;
+  user_event.user.code = code;
+  user_event.user.data1 = packet;
   user_event.user.data2 = NULL;
 
   while (SDL_PushEvent(&user_event) == -1) {
@@ -257,7 +290,87 @@ static void push_pty_write(char nt_unicode_char[5]) {
 }
 
 static int parse_command(char * buffer, size_t buffer_count) {
-  return 0;
+  int position = 0;
+
+  if (position >= buffer_count) {
+    printf("TODO: parse_command runs");
+    return 0;
+  }
+
+  // TODO: check position doesn't drop off here.
+  switch (buffer[position++]) {
+    case '[': /* CSI */
+    {
+      /* check for ? */
+      // bool q = false; - unused
+      if (buffer[position] == '?') {
+        // q = true; - unused
+        position++;
+      }
+
+      /* read sequence of numbers, seperated by ';' */
+      long int args[16];
+      int arg_count = 0;
+
+      char command;
+      bool hit_something;
+ 
+      while (position < buffer_count) {
+        char c_char = buffer[position++];
+
+        if (c_char == ';') {
+          if (!hit_something) {
+            args[arg_count++] = 0;
+          }
+          hit_something = false;
+          // do nothing
+        } else if (c_char >= '0' && c_char <= '9') {
+          hit_something = true;
+          char ** end_ptr = malloc(sizeof(char *));
+          char * start_loc = &buffer[position-1];
+          args[arg_count++] = strtol(start_loc, end_ptr, 10);
+          position += (*end_ptr - start_loc - 1);
+          free(end_ptr);
+
+          if (arg_count >= 16) {
+            fprintf(stderr, "TODO: handle more than 16 numbers in a control code");
+            break;
+          }
+        } else {
+          if (!hit_something) {
+            args[arg_count++] = 0;
+          }
+            /* read final character */
+          command = c_char;
+          break;
+        }
+      }
+
+      switch (command) {
+        case 'm': /* set attributes */ 
+        {
+          pty_set_attributes_t * packet = malloc(sizeof(pty_set_attributes_t));
+          memcpy(packet->attr_codes, args, sizeof(args));
+          packet->arg_count = arg_count;
+          send_sdl_userevent(PTY_SET_ATTRIBUTE, packet);
+          break;
+        }
+        default:
+        {
+
+          fprintf(stderr, "TODO: unknown command: %c\n", command);
+          break;
+        }
+      }
+      break;
+    }
+
+    case ']': /* OSC */
+    {
+      break;
+    }
+  }
+  return position;
 }
 
 static void handle_pty_data(char * buffer, size_t buffer_count) {
@@ -268,7 +381,7 @@ static void handle_pty_data(char * buffer, size_t buffer_count) {
     char byte = buffer[position++];
 
     if (byte == 0x1B) {
-      position += parse_command(&buffer[position], buffer_count - position - 1);
+      position += parse_command(&buffer[position], buffer_count - position);
 
     } else if ((byte & 0x80) == 0x00) {
       // normal char 
@@ -317,7 +430,7 @@ static void handle_pty_data(char * buffer, size_t buffer_count) {
       out[4] = '\0';
       push_pty_write(out);
     } else {
-      fprintf(stderr, "Unknown byte: %x\n", byte);
+      fprintf(stderr, "Unknown byte: %c\n", byte);
     }
   }
 }

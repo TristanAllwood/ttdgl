@@ -20,8 +20,11 @@ ttdgl_state_t * init_ttdgl_state(pid_t child_pid, int pty_master_fd) {
   state->saved_cursor   = cursor;
 
   attrs_t attrs;
+  attrs.attr_flags = 0;
   attrs.line_wrap = true;
   attrs.alt_font  = false;
+  attrs.foreground_colour = 0x000000;
+  attrs.background_colour = 0xffffff;
 
   state->current_attrs = attrs;
   state->saved_attrs = attrs;
@@ -47,9 +50,7 @@ ttdgl_state_t * init_ttdgl_state(pid_t child_pid, int pty_master_fd) {
       ++cell) {
     cell->nt_unicode_char[0] = '~';
     cell->nt_unicode_char[1] = '\0';
-    cell->alt_font = false;
-    cell->foreground_colour=0xFFFFFF00;
-    cell->background_colour=0x00000000;
+    cell->attrs = attrs;
   }
   initial_frame->cells = cells;
 
@@ -80,7 +81,6 @@ void put_char(char nt_unicode_char[5], ttdgl_state_t * state) {
   int nCols = frame->cols;
 
   cell_t * cells = frame->cells;
-  cell_t * cell = cells + (nCols * cursor.y) + cursor.x;
 
   switch (nt_unicode_char[0]) {
     case '\n':
@@ -99,9 +99,10 @@ void put_char(char nt_unicode_char[5], ttdgl_state_t * state) {
         cursor.x = 0;
         cursor.y = 0;
       }
+      cell_t * cell = cells + (nCols * cursor.y) + cursor.x;
       memcpy(cell->nt_unicode_char, nt_unicode_char, 5);
+      cell->attrs = state->current_attrs;
       cursor.x++;
-
 
   }
 

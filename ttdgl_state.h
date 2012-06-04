@@ -12,17 +12,23 @@ enum attr_flag {
   ATTR_UNDERSCORE = 1 << 2,
   ATTR_BLINK      = 1 << 3,
   ATTR_REVERSE    = 1 << 4,
-  ATTR_HIDDEN     = 1 << 5
+  ATTR_HIDDEN     = 1 << 5,
+  ATTR_BOLD       = 1 << 6
 };
+
+typedef struct attrs {
+
+  int attr_flags;
+  bool line_wrap;
+  bool alt_font;
+  uint32_t foreground_colour;
+  uint32_t background_colour; 
+
+} attrs_t;
 
 typedef struct cell {
   char nt_unicode_char[5];
-
-  bool alt_font;
-  int attr_flags;
-
-  uint32_t foreground_colour;
-  uint32_t background_colour; 
+  attrs_t attrs;
 } cell_t;
 
 typedef struct frame {
@@ -38,14 +44,6 @@ typedef struct cursor {
   uint x;
   uint y;
 } cursor_t;
-
-
-typedef struct attrs {
-
-  bool line_wrap;
-  bool alt_font;
-
-} attrs_t;
 
 typedef struct ttdgl_state {
   pid_t child_pid;
