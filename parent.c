@@ -202,14 +202,83 @@ static void handle_sdl_keydown(SDL_KeyboardEvent * key_ev, ttdgl_state_t * state
   char out[5];
   out[1] = '\0';
   SDLKey key = key_ev->keysym.sym;
+  SDLMod mod = key_ev->keysym.mod;
 
-  if (key == SDLK_RETURN) {
-      out[0] = '\r';
-  } else if (key >= SDLK_a && key <= SDLK_z) {
-      out[0] = 'a' + key - SDLK_a;
+  bool shift = mod & KMOD_SHIFT;
+
+  if (key >= SDLK_a && key <= SDLK_z) {
+    char base = shift ? 'A' : 'a';
+    out[0] = base + key - SDLK_a;
+  } else if (key >= SDLK_0 && key <= SDLK_9) {
+    out[0] = '0' + key - SDLK_0; 
   } else {
-    fprintf(stderr, "TODO: handle keydown: %x\n", key);
-    return;
+    switch (key) {
+      case SDLK_BACKSPACE:
+        out[0] = '\b'; break;
+      case SDLK_TAB:
+        out[0] = '\t'; break;
+      case SDLK_RETURN:
+        out[0] = '\r'; break;
+      case SDLK_SPACE:
+        out[0] = ' ';  break;
+      case SDLK_EXCLAIM:
+        out[0] = '!'; break;
+      case SDLK_QUOTEDBL:
+        out[0] = '"'; break;
+      case SDLK_HASH:
+        out[0] = '#'; break;
+      case SDLK_DOLLAR:
+        out[0] = '$'; break;
+      case SDLK_AMPERSAND:
+        out[0] = '&'; break;
+      case SDLK_QUOTE:
+        out[0] = '\''; break;
+      case SDLK_LEFTPAREN:
+        out[0] = '('; break;
+      case SDLK_RIGHTPAREN:
+        out[0] = ')'; break;
+      case SDLK_ASTERISK:
+        out[0] = '*'; break;
+      case SDLK_PLUS:
+        out[0] = '+'; break;
+      case SDLK_COMMA:
+        out[0] = ','; break;
+      case SDLK_MINUS:
+        out[0] = '-'; break;
+      case SDLK_PERIOD:
+        out[0] = '.'; break;
+      case SDLK_SLASH:
+        out[0] = '/'; break;
+      case SDLK_COLON:
+        out[0] = ':'; break;
+      case SDLK_SEMICOLON:
+        out[0] = shift ? ':' : ';'; break;
+      case SDLK_LESS:
+        out[0] = '<'; break;
+      case SDLK_EQUALS:
+        out[0] = '='; break;
+      case SDLK_GREATER:
+        out[0] = '>'; break;
+      case SDLK_QUESTION:
+        out[0] = '?'; break;
+      case SDLK_AT:
+        out[0] = '@'; break;
+      case SDLK_LEFTBRACKET:
+        out[0] = '['; break;
+      case SDLK_BACKSLASH:
+        out[0] = '\\'; break;
+      case SDLK_RIGHTBRACKET:
+        out[0] = ']'; break;
+      case SDLK_CARET:
+        out[0] = '^'; break;
+      case SDLK_UNDERSCORE:
+        out[0] = '_'; break;
+      case SDLK_BACKQUOTE:
+        out[0] = '`'; break;
+      default:
+        fprintf(stderr, "TODO: handle keydown: %x\n", key);
+        return;
+    }
   }
 
   put_char(out, state);
