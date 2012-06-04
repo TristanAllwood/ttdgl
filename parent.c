@@ -64,6 +64,7 @@ void parent(pid_t child_pid, int pty_master_fd, int pty_child_fd) {
     die_with_error("SDL_GL_SetAttribute[DOUBLEBUFFER]");
   }
 
+
   ttdgl_state_t * state = init_ttdgl_state(child_pid, pty_master_fd);
 
   sdl_render_loop(state);

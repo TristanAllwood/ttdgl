@@ -3,11 +3,11 @@
 
 #include "render.h"
 
-static const int FONT_SIZE = 12;
+static const GLfloat FONT_SIZE = 12.00f;
 
-static const int FAR_DEPTH = 10;
-static const GLfloat BOLD_DEPTH = 1;
-static const int EYE_GAP = 5;
+static const GLfloat FAR_DEPTH = 1.0f;
+static const GLfloat BOLD_DEPTH = 0.001f;
+static const GLfloat EYE_GAP = 0.01f;
 
 static void render_scene(GLfloat xoff, ttdgl_state_t * state);
 
@@ -16,6 +16,7 @@ void render(ttdgl_state_t * state) {
 
   glClearColor(1, 1, 1, 0);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
   glLoadIdentity();
 
   glViewport(0, 0, state->surface_width / 2, state->surface_height);
@@ -36,7 +37,7 @@ static void render_scene(GLfloat xoff, ttdgl_state_t * state) {
   glLoadIdentity();
 
   //glOrtho(0, state->surface_width, 0, state->surface_height, 1, -1);
-  glFrustum(0, (state->surface_width / 2), 0, state->surface_height, FAR_DEPTH, FAR_DEPTH + 15); 
+  glFrustum(0, (state->surface_width / 2), 0, state->surface_height, FAR_DEPTH, FAR_DEPTH + 100); 
 
   glMatrixMode(GL_MODELVIEW);
   glEnable(GL_TEXTURE_2D);
@@ -53,13 +54,13 @@ static void render_scene(GLfloat xoff, ttdgl_state_t * state) {
   uint num_rows = current_frame->rows;
   uint num_cols = current_frame->cols;
 
-  GLfloat act_width = (FONT_SIZE * num_cols) / 2;
+  GLfloat act_width = (FONT_SIZE * num_cols) / 2.0f;
   GLfloat act_height = FONT_SIZE * num_rows;
 
-  GLfloat gap_x = (state->surface_width / 2 - act_width) / 2;
-  GLfloat gap_y = (state->surface_height - act_height) / 2;
+  GLfloat gap_x = ((state->surface_width / 2.0f) - act_width) / 2.0f;
+  GLfloat gap_y = (state->surface_height - act_height) / 2.0f;
 
-  glTranslatef(gap_x, (FONT_SIZE * num_rows) + gap_y, -(FAR_DEPTH + 1));
+  glTranslatef(gap_x, (FONT_SIZE * num_rows) + gap_y, -(FAR_DEPTH + 0.001f));
 
   for (int i = 0 ; i < num_rows ; ++i) {
     for (int j = 0 ; j < num_cols ; ++j, ++cell) {
@@ -76,8 +77,7 @@ static void render_scene(GLfloat xoff, ttdgl_state_t * state) {
         glTranslatef(0,0,-BOLD_DEPTH);
       }
 
-      ftglRenderFont(state->font, chars, FTGL_RENDER_ALL);
-
+      ftglRenderFont(state->font, chars, FTGL_RENDER_ALL); 
       if ((cell->attrs.attr_flags & ATTR_BOLD) == ATTR_BOLD) {
         glTranslatef(0,0,BOLD_DEPTH);
       }
