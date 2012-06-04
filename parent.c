@@ -29,9 +29,6 @@ static void handle_sdl_keyup(SDL_KeyboardEvent * key, ttdgl_state_t * state);
 static void handle_sdl_pty_closed(void);
 static void handle_sdl_pty_write(pty_write_t * data, ttdgl_state_t * state);
 
-
-extern int parse_command(char * buffer, size_t buffer_size);
-
 void parent(pid_t child_pid, int pty_master_fd, int pty_child_fd) {
   if (close(pty_child_fd) == -1) {
     die_with_error("close [child]");
@@ -257,6 +254,10 @@ static void push_pty_write(char nt_unicode_char[5]) {
     // TODO yuk!
     sched_yield();
   }
+}
+
+static int parse_command(char * buffer, size_t buffer_count) {
+  return 0;
 }
 
 static void handle_pty_data(char * buffer, size_t buffer_count) {

@@ -1,23 +1,13 @@
-OBJS=ttdgl.o util.o ttdgl_state.o child.o render.o parent.o commands_parser.o commands_lexer.o
+OBJS=ttdgl.o util.o ttdgl_state.o child.o render.o parent.o
 SRC=*.c *.h
 CC=gcc
 FREETYPE_INCLUDE="/usr/include/freetype2/"
 CFLAGS=-Wall -Werror -pedantic -pedantic-errors -std=c99 -g $(shell sdl-config --cflags) -I$(FREETYPE_INCLUDE)
 LDFLAGS=$(shell sdl-config --libs) -lGL -lftgl
 
-YACC=/usr/bin/bison
-LEX=/usr/bin/flex
-LFLAGS=
-YFLAGS=
-
-.SUFFIXES: .c .o .h .l .y
+.SUFFIXES: .c .o .h
 
 all: tags ttdgl
-
-%.c %.h: %.y
-	$(YACC) $(YFLAGS) --defines=${<:.y=.h} -o $@ $< 
-
-commands_lexer.o: commands_lexer.c commands_parser.h
 
 child.o: child.c child.h util.h
 
@@ -35,8 +25,6 @@ clean:
 	rm -rf ttdgl
 	rm -f *.o
 	rm -f tags
-	rm -f commands_lexer.c commands_lexer.h
-	rm -f commands_parser.c commands_parser.h 
 
 tags: $(SRC)
 	ctags $^
