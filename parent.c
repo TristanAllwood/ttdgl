@@ -314,8 +314,14 @@ static void handle_sdl_pty_set_attribute(pty_set_attributes_t * data, ttdgl_stat
       case 5:
         state->current_attrs.attr_flags |= ATTR_BLINK;
         break;
+      case 32:
+        state->current_attrs.foreground_colour = 0x00ff00;
+        break;
       case 33:
         state->current_attrs.foreground_colour = 0xff0000;
+        break;
+      case 34:
+        state->current_attrs.foreground_colour = 0x0000ff;
         break;
       case 36:
         state->current_attrs.foreground_colour = 0x00ffff;

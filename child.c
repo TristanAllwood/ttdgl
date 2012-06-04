@@ -1,10 +1,11 @@
-#include <unistd.h>
-#include <termios.h>
-#include <sys/ioctl.h>
-#include <stdlib.h>
 #include <errno.h>
-#include <sys/types.h>
 #include <pwd.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <sys/ioctl.h>
+#include <sys/types.h>
+#include <termios.h>
+#include <unistd.h>
 
 #include "util.h"
 #include "child.h"
@@ -61,6 +62,10 @@ void child(int pty_master_fd, int pty_child_fd) {
 
   if (ioctl(0, TIOCSCTTY, 1) == -1) {
     die_with_error("ioctl");
+  }
+
+  if (setenv("TERM", "xterm", true) == -1) {
+    die_with_error("setenv");
   }
 
   char * shell = get_shell();
