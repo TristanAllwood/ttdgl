@@ -1,4 +1,5 @@
 #include <X11/Xlib.h>
+#include <errno.h>
 #include <sched.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -131,10 +132,20 @@ static int epoll_event_loop(void * data) {
 
   static const int MAX_EVENTS=10;
   struct epoll_event events[MAX_EVENTS];
-  int event_count;
 
-  while((event_count = epoll_wait(epoll_fd, events, MAX_EVENTS, -1)) != -1) {
-    for(int i = 0 ; i < event_count ; ++i) {
+  while (true) {
+    int event_count;
+    do {
+      printf("start epoll wait\n");
+      event_count = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
+      printf("stop epoll wait\n");
+    } while (event_count == -1 && errno == EINTR);
+
+    if (event_count == -1) {
+      die_with_error("epoll_wait");
+    }
+
+    for (int i = 0 ; i < event_count ; ++i) {
 
       if (events[i].data.fd == pty_master_fd) {
         char * buffer = calloc(BUFFER_SIZE, sizeof(char));
@@ -159,11 +170,9 @@ static int epoll_event_loop(void * data) {
       }
     }
   }
-
-  die_with_error("epoll_wait");
-  
   return 1;
 }
+
 
 static void handle_sdl_quit(void) {
   exit(0);
