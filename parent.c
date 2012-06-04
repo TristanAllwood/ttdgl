@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <sys/epoll.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 
 #include "parent.h"
@@ -34,6 +35,17 @@ static void handle_sdl_pty_set_attribute(pty_set_attributes_t * data, ttdgl_stat
 void parent(pid_t child_pid, int pty_master_fd, int pty_child_fd) {
   if (close(pty_child_fd) == -1) {
     die_with_error("close [child]");
+  }
+
+  /* hard set the child to 80 x 24  */
+  struct winsize winsize;
+  winsize.ws_col = 80;
+  winsize.ws_row = 24;
+  winsize.ws_xpixel = 640;
+  winsize.ws_xpixel = 480;
+
+  if (ioctl(pty_master_fd, TIOCSWINSZ, &winsize) == -1) {
+    die_with_error("ioctl[TIOCSWINSZ]");
   }
 
   XInitThreads();
@@ -266,7 +278,7 @@ static void handle_sdl_keydown(SDL_KeyboardEvent * key_ev, ttdgl_state_t * state
       case SDLK_LEFTBRACKET:
         out[0] = '['; break;
       case SDLK_BACKSLASH:
-        out[0] = '\\'; break;
+        out[0] = shift ? '|' : '\\'; break;
       case SDLK_RIGHTBRACKET:
         out[0] = ']'; break;
       case SDLK_CARET:
