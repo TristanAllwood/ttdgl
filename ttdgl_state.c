@@ -58,7 +58,7 @@ ttdgl_state_t * init_ttdgl_state(pid_t child_pid, int pty_master_fd) {
 
   state->render_state.font_size = 14.0f;
   state->render_state.far_depth = 10.0f;
-  state->render_state.bold_depth = 1.0f;
+  state->render_state.bold_depth = 0.2f;
   state->render_state.eye_gap = 1.0f;
 
   return state;
