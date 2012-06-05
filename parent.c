@@ -1,3 +1,4 @@
+#include <GL/gl.h>
 #include <X11/Xlib.h>
 #include <errno.h>
 #include <sched.h>
@@ -58,7 +59,9 @@ void parent(pid_t child_pid, int pty_master_fd, int pty_child_fd) {
     die_with_error("atexit");
   }
 
-  SDL_CreateThread(epoll_event_loop, (void *) pty_master_fd);
+  int * pty_master_fd_ptr = malloc(sizeof(int));
+  *pty_master_fd_ptr = pty_master_fd;
+  SDL_CreateThread(epoll_event_loop, (void *) pty_master_fd_ptr);
 
   if (SDL_GL_SetAttribute( SDL_GL_RED_SIZE, 8 ) == -1) {
     die_with_error("SDL_GL_SetAttribute[RED]");
@@ -126,7 +129,9 @@ static void sdl_render_loop(ttdgl_state_t * state) {
 
 
 static int epoll_event_loop(void * data) {
-  int pty_master_fd = (int) data;
+  int * pty_master_fd_ptr = (int *) data;
+  int pty_master_fd = (*pty_master_fd_ptr);
+  free(pty_master_fd_ptr);
 
   int epoll_fd = epoll_create(1);
   if (epoll_fd == -1) {
@@ -287,6 +292,30 @@ static void handle_sdl_keydown(SDL_KeyboardEvent * key_ev, ttdgl_state_t * state
         out[0] = '_'; break;
       case SDLK_BACKQUOTE:
         out[0] = '`'; break;
+      case SDLK_KP7:
+        printf("far +\n");
+        state->render_state.far_depth += 1.0f; return;
+      case SDLK_KP8:
+        printf("far -\n");
+        state->render_state.far_depth -= 1.0f; return;
+      case SDLK_KP4:
+        printf("bold +\n");
+        state->render_state.bold_depth += 0.05f; return;
+      case SDLK_KP5:
+        printf("bold -\n");
+        state->render_state.bold_depth -= 0.05f; return;
+      case SDLK_KP1:
+        printf("eye +\n");
+        state->render_state.eye_gap += 0.05f; return;
+      case SDLK_KP2:
+        printf("eye -\n");
+        state->render_state.eye_gap -= 0.05f; return;
+      case SDLK_KP_PLUS:
+        printf("font +\n");
+        state->render_state.font_size += 1.0f; return;
+      case SDLK_KP_MINUS:
+        printf("font -\n");
+        state->render_state.font_size -= 1.0f; return;
       default:
         fprintf(stderr, "TODO: handle keydown: %x\n", key);
         return;

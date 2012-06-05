@@ -1,10 +1,11 @@
 #ifndef TTDGL_STATE_H
 #define TTDGL_STATE_H
 
-#include <stdbool.h>
-#include <SDL.h>
-#include <stdlib.h>
 #include <FTGL/ftgl.h>
+#include <GL/gl.h>
+#include <SDL.h>
+#include <stdbool.h>
+#include <stdlib.h>
 
 enum attr_flag {
   ATTR_BRIGHT     = 1 << 0,
@@ -45,6 +46,13 @@ typedef struct cursor {
   uint y;
 } cursor_t;
 
+typedef struct render_state {
+  GLfloat font_size;
+  GLfloat far_depth;
+  GLfloat bold_depth;
+  GLfloat eye_gap;
+} render_state_t;
+
 typedef struct ttdgl_state {
   pid_t child_pid;
   int pty_master_fd;
@@ -62,8 +70,11 @@ typedef struct ttdgl_state {
   FTGLfont * alt_font;
 
   frame_t * current_frame;
+
+  render_state_t render_state;
   
 } ttdgl_state_t;
+
 
 ttdgl_state_t * init_ttdgl_state(pid_t child_pid, int pty_master_fd);
 
